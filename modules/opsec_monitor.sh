@@ -80,6 +80,7 @@ launch_yad_monitor() {
 
 main() {
     check_dependencies
+    export GDK_BACKEND=x11
     launch_yad_monitor &
     disown
     echo "✅ OPSEC Monitor launched. You can continue using Ghosint while it runs in the background."
@@ -87,4 +88,3 @@ main() {
 }
 
 main
-
