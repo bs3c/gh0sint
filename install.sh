@@ -4,7 +4,9 @@ INSTALL_DIR="/opt/gh0sint"
 LAUNCHER="/usr/local/bin/gh0sint"
 REQUIRED_PACKAGES=(tor torsocks proxychains4 curl iproute2 yad)
 
-check_and_install() {
+echo "🔧 Ghosint Installer"
+
+check_and_install_dependencies() {
     echo "📦 Checking dependencies..."
     local missing=()
     for pkg in "${REQUIRED_PACKAGES[@]}"; do
@@ -21,7 +23,7 @@ check_and_install() {
     fi
 }
 
-copy_tool() {
+copy_tool_files() {
     echo "📁 Copying Ghosint to $INSTALL_DIR..."
     sudo rm -rf "$INSTALL_DIR"
     sudo mkdir -p "$INSTALL_DIR"
@@ -32,22 +34,96 @@ copy_tool() {
 create_launcher() {
     echo "🚀 Creating launcher at $LAUNCHER..."
 
-    echo "#!/bin/bash
-cd $INSTALL_DIR
-./gh0sint.sh \"\$@\"" | sudo tee "$LAUNCHER" >/dev/null
+    sudo tee "$LAUNCHER" > /dev/null <<EOF
+#!/bin/bash
+BASE_DIR="$INSTALL_DIR"
+MODULES_DIR="\$BASE_DIR/modules"
+UTILS_DIR="\$BASE_DIR/utils"
 
-    sudo chmod +x "$LAUNCHER"
-    echo "✅ You can now run: gh0sint from anywhere"
+# Print banner if it exists
+[[ -f "\$UTILS_DIR/banner.sh" ]] && source "\$UTILS_DIR/banner.sh" && print_banner
+
+run_module_directly() {
+    for arg in "\$@"; do
+        case "\$arg" in
+            --ghostmode)
+                bash "\$MODULES_DIR/ghostmode.sh"
+                ;;
+            --opsec)
+                bash "\$MODULES_DIR/opsec_gui.sh"
+                ;;
+            *)
+                echo "❌ Unknown flag: \$arg"
+                echo "Usage: gh0sint [--ghostmode] [--opsec]"
+                exit 1
+                ;;
+        esac
+    done
+    exit 0
+}
+
+show_menu() {
+    while true; do
+        echo "🌐 Welcome to Ghosint"
+        echo "Available modules:"
+        echo
+
+        i=1
+        declare -A module_map
+        for module in "\$MODULES_DIR"/*.sh; do
+            module_name=\$(basename "\$module" .sh)
+            echo "[$i] \$module_name"
+            module_map[\$i]="\$module"
+            ((i++))
+        done
+
+        echo "[0] Exit"
+        echo
+        read -p "Choose a module to run (number): " choice
+
+        if [[ "\$choice" == "0" ]]; then
+            echo "👻 Exiting Ghosint."
+            exit 0
+        fi
+
+        selected_module="\${module_map[\$choice]}"
+        if [[ -n "\$selected_module" && -f "\$selected_module" ]]; then
+            echo "🚀 Launching module: \$(basename "\$selected_module")"
+            bash "\$selected_module"
+        else
+            echo "❌ Invalid selection. Try again."
+        fi
+
+        echo
+        read -p "Press Enter to return to the menu..." dummy
+        clear
+    done
 }
 
 main() {
-    check_and_install
-    copy_tool
+    if [[ \$# -gt 0 ]]; then
+        run_module_directly "\$@"
+    else
+        show_menu
+    fi
+}
+
+main "\$@"
+EOF
+
+    sudo chmod +x "$LAUNCHER"
+    echo "✅ You can now run Ghosint globally with: gh0sint"
+}
+
+main() {
+    check_and_install_dependencies
+    copy_tool_files
     create_launcher
 
     echo
     echo "🎉 Ghosint is installed!"
-    echo "➡️ Run it with: gh0sint --opsec or gh0sint --ghostmode"
+    echo "➡️  Run it from anywhere using: gh0sint"
+    echo "➡️  Or use flags like: gh0sint --opsec --ghostmode"
 }
 
 main
