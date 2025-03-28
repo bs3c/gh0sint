@@ -1,50 +1,54 @@
 #!/bin/bash
 
-echo "🔧 Installing Ghosint..."
+INSTALL_DIR="/opt/gh0sint"
+LAUNCHER="/usr/local/bin/gh0sint"
 
 REQUIRED_PACKAGES=(tor torsocks proxychains4 curl iproute2 yad)
 
-MISSING_PACKAGES=()
-
 check_and_install() {
+    echo "📦 Checking dependencies..."
+    local missing=()
     for pkg in "${REQUIRED_PACKAGES[@]}"; do
         if ! dpkg -s "$pkg" &>/dev/null; then
-            MISSING_PACKAGES+=("$pkg")
+            missing+=("$pkg")
         fi
     done
 
-    if [[ ${#MISSING_PACKAGES[@]} -gt 0 ]]; then
-        echo "📦 Installing missing packages: ${MISSING_PACKAGES[*]}"
-        sudo apt update && sudo apt install -y "${MISSING_PACKAGES[@]}"
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "📦 Installing missing packages: ${missing[*]}"
+        sudo apt update && sudo apt install -y "${missing[@]}"
     else
-        echo "✅ All required packages are already installed."
+        echo "✅ All dependencies installed."
     fi
 }
 
-set_permissions() {
-    echo "🔐 Setting executable permissions..."
-    chmod +x ghosint.sh
-    chmod +x modules/*.sh
+copy_tool() {
+    echo "📁 Installing gh0sint to $INSTALL_DIR..."
+    sudo rm -rf "$INSTALL_DIR"
+    sudo mkdir -p "$INSTALL_DIR"
+    sudo cp -r ./* "$INSTALL_DIR"
+    sudo chmod -R +x "$INSTALL_DIR"
 }
 
-install_to_path() {
-    echo "🚀 Adding gh0sint to /usr/local/bin..."
+create_launcher() {
+    echo "🚀 Creating launcher script at $LAUNCHER..."
 
-    # Create a wrapper if needed
-    sudo cp "$(pwd)/ghosint.sh" /usr/local/bin/gh0sint
-    sudo chmod +x /usr/local/bin/gh0sint
+    echo "#!/bin/bash
+cd $INSTALL_DIR
+./ghosint.sh \"\$@\"" | sudo tee "$LAUNCHER" >/dev/null
 
+    sudo chmod +x "$LAUNCHER"
     echo "✅ You can now run the tool from anywhere with: gh0sint"
 }
 
 main() {
     check_and_install
-    set_permissions
-    install_to_path
+    copy_tool
+    create_launcher
 
     echo
-    echo "🎉 Ghosint is fully installed!"
-    echo "➡️  Run it from anywhere using: gh0sint"
+    echo "🎉 Ghosint is ready to go!"
+    echo "➡️  Try running: gh0sint --opsec"
 }
 
 main
