@@ -1,7 +1,7 @@
 #!/bin/bash
 
 check_dependencies() {
-    for tool in zenity curl ip hostname awk grep sed; do
+    for tool in yad curl ip hostname awk grep sed; do
         command -v "$tool" >/dev/null 2>&1 || {
             echo "$tool is required but not installed. Exiting."
             exit 1
@@ -38,25 +38,31 @@ $interfaces
     echo -e "$output"
 }
 
-launch_gui_monitor() {
+launch_yad_monitor() {
     (
         while true; do
+            clear
             generate_opsec_report
             sleep 5
         done
-    ) | zenity --text-info \
+    ) | yad --text-info \
         --title="Ghosint - Live OPSEC Monitor" \
-        --width=700 --height=500 \
-        --font="monospace 10" \
-        --timeout=0 \
-        --auto-scroll
+        --width=800 \
+        --height=600 \
+        --fontname="monospace 10" \
+        --center \
+        --button="Close" \
+        --window-icon=dialog-information \
+        --no-buttons \
+        --timeout-indicator=bottom \
+        --forever
 }
 
 main() {
     check_dependencies
-    launch_gui_monitor &
+    launch_yad_monitor &
     disown
-    echo "OPSEC Monitor launched. You can continue using Ghosint while it's running."
+    echo "✅ OPSEC Monitor launched with YAD. You can continue using Ghosint."
     sleep 1
 }
 
