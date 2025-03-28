@@ -9,6 +9,26 @@ check_dependencies() {
     done
 }
 
+get_interface_info() {
+    interfaces_output=""
+    interfaces=$(ip -br link | awk '{print $1}')
+
+    for iface in $interfaces; do
+        ipv4=$(ip -4 addr show "$iface" | awk '/inet / {print $2}')
+        ipv6=$(ip -6 addr show "$iface" | awk '/inet6 / {print $2}')
+        
+        # Skip interfaces with no IPs
+        [[ -z "$ipv4" && -z "$ipv6" ]] && continue
+
+        interfaces_output+="Interface: $iface\n"
+        [[ -n "$ipv4" ]] && interfaces_output+="  ▸ IPv4: $ipv4\n"
+        [[ -n "$ipv6" ]] && interfaces_output+="  ▸ IPv6: $ipv6\n"
+        interfaces_output+="\n"
+    done
+
+    echo -e "$interfaces_output"
+}
+
 generate_opsec_report() {
     public_ip=$(curl -s ifconfig.me)
     tor_check=$(curl -s https://check.torproject.org | grep -q "Congratulations" && echo "✔️ Using Tor" || echo "❌ Not using Tor")
@@ -16,24 +36,25 @@ generate_opsec_report() {
     hostname=$(hostname)
     default_iface=$(ip route | grep default | awk '{print $5}' | head -n 1)
     dns=$(grep "nameserver" /etc/resolv.conf | awk '{print $2}' | paste -sd ", ")
-    interfaces=$(ip -br addr | awk '{print $1 " => " $3}')
+    interfaces=$(get_interface_info)
     suspicious_procs=$(ps aux | grep -Ei "keylog|tcpdump|wireshark|netcat|nmap|socat|nc|strace" | grep -v grep)
     foreign_ssh=$(last -ai | grep -vE "127.0.0.1|::1" | head -n 5)
 
     output="🔒 Ghosint - Live OPSEC Monitor
 
 • Hostname: $hostname
-• Interface: $default_iface
+• Default Interface: $default_iface
 • MAC Address: $mac
 • Public IP: $public_ip
 • DNS: $dns
 • Tor Status: $tor_check
+
 • Interfaces:
 $interfaces
 "
 
-    [[ ! -z "$suspicious_procs" ]] && output+="\n⚠️ Suspicious Processes:\n$suspicious_procs\n"
-    [[ ! -z "$foreign_ssh" ]] && output+="\n⚠️ Recent External SSH Logins:\n$foreign_ssh"
+    [[ -n "$suspicious_procs" ]] && output+="⚠️ Suspicious Processes:\n$suspicious_procs\n\n"
+    [[ -n "$foreign_ssh" ]] && output+="⚠️ Recent External SSH Logins:\n$foreign_ssh\n"
 
     echo -e "$output"
 }
@@ -51,7 +72,6 @@ launch_yad_monitor() {
         --height=600 \
         --fontname="monospace 10" \
         --center \
-        --button="Close" \
         --window-icon=dialog-information \
         --no-buttons \
         --timeout-indicator=bottom \
@@ -62,8 +82,9 @@ main() {
     check_dependencies
     launch_yad_monitor &
     disown
-    echo "✅ OPSEC Monitor launched with YAD. You can continue using Ghosint."
+    echo "✅ OPSEC Monitor launched. You can continue using Ghosint while it runs in the background."
     sleep 1
 }
 
 main
+
