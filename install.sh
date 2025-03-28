@@ -35,7 +35,7 @@ create_launcher() {
 
     echo "#!/bin/bash
 cd $INSTALL_DIR
-./ghosint.sh \"\$@\"" | sudo tee "$LAUNCHER" >/dev/null
+./gh0sint.sh \"\$@\"" | sudo tee "$LAUNCHER" >/dev/null
 
     sudo chmod +x "$LAUNCHER"
     echo "✅ You can now run the tool from anywhere with: gh0sint"
